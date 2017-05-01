@@ -1,0 +1,95 @@
+apply plugin: 'java'
+
+ext.lenskitVersion = '3.0-T1'
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://oss.sonatype.org/content/repositories/snapshots/'
+    }
+
+}
+
+ext.userIds = []
+if (project.hasProperty('userId')) {
+    userIds = project.userId.split(/,/)
+}
+
+ext.userList = []
+if (project.hasProperty('userId')) {
+ userList = project.userId.split(/,/)
+}
+ext.itemList = []
+if (project.hasProperty('itemIds')) {
+ itemList = project.itemIds.split(/,/)
+}
+
+
+dependencies {
+    compile "org.grouplens.lenskit:lenskit-all:$lenskitVersion"
+    runtime "org.grouplens.lenskit:lenskit-cli:$lenskitVersion"
+}
+
+task recommendBasic(type: JavaExec, group: 'run') {
+    description 'Runs the recommender with the basic profile.'
+    classpath sourceSets.main.runtimeClasspath
+    main 'org.lenskit.cli.Main'
+    args 'recommend'
+    args '-c', 'etc/basic.groovy'
+    args userIds
+}
+
+task recommendWeighted(type: JavaExec, group: 'run') {
+    description 'Runs the recommender with the basic profile.'
+    classpath sourceSets.main.runtimeClasspath
+    main 'org.lenskit.cli.Main'
+    args 'recommend'
+    args '-c', 'etc/weighted.groovy'
+    args userIds
+}
+
+task prepareSubmission(type: Zip) {
+    archiveName = 'cbf-submission.zip'
+    from projectDir
+    into 'cbf-assignment'
+    include 'src/**'
+    include 'etc/*/'
+    include 'build.gradle'
+}
+
+task recommend(type: JavaExec, group: 'run') {
+    classpath sourceSets.main.runtimeClasspath
+    main 'org.grouplens.lenskit.cli.Main'
+    args 'recommend'
+    args '-c', file('etc/user-user.groovy')
+    args userList
+}
+task predict(type: JavaExec, group: 'run') {
+    classpath sourceSets.main.runtimeClasspath
+    main 'org.grouplens.lenskit.cli.Main'
+    args 'predict'
+    args '-c', file('etc/user-user.groovy')
+    if (userList.size() > 0) {
+        args userList.first()
+        args itemList
+    }
+}
+
+task recommendItemCF(type: JavaExec, group: 'run') {
+    classpath sourceSets.main.runtimeClasspath
+    main 'org.grouplens.lenskit.cli.Main'
+    args 'recommend'
+    args '-c', file('etc/item-item.groovy')
+    args userList
+}
+
+task predictItemCF(type: JavaExec, group: 'run') {
+    classpath sourceSets.main.runtimeClasspath
+    main 'org.grouplens.lenskit.cli.Main'
+    args 'predict'
+    args '-c', file('etc/item-item.groovy')
+    if (userList.size() > 0) {
+        args userList.first()
+        args itemList
+    }
+}
