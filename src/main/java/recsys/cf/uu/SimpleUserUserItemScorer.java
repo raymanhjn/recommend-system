@@ -2,6 +2,7 @@ package recsys.cf.uu;
 
 import it.unimi.dsi.fastutil.longs.Long2DoubleMap;
 import it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import org.lenskit.api.Result;
 import org.lenskit.api.ResultMap;
 import org.lenskit.basic.AbstractItemScorer;
@@ -40,6 +41,7 @@ public class SimpleUserUserItemScorer extends AbstractItemScorer {
     private final TextEventDAO eventDao;
     private final CSVUserDAO userInfoDao;
     private final CSVBookDAO bookInfoDao;
+    private static int neighbor_Threshold =10;
     
     @Inject
     public SimpleUserUserItemScorer(UserEventDAO udao, ItemEventDAO idao,TextEventDAO eDao,CSVUserDAO ufDao,CSVBookDAO bfDao) {
@@ -55,37 +57,39 @@ public class SimpleUserUserItemScorer extends AbstractItemScorer {
         List<Rating> allRatings=getAllRatings();                   //all events includes train and test data
         Map<Long,List<Long>> predicts=getMarkedData(allRatings);     // user and books list that we need to predict
         
-//        for(Map.Entry<Long,List<Long>> entry:predicts.entrySet()){
-//            Long pUser=entry.getKey();
-//            List<Long> pItems=entry.getValue();
-//            Long2DoubleMap userVector = getUserRatingVector(pUser);   //already delete '55' marked items
-//            Double pMean=Vectors.mean(userVector);
-//            for(Long pItem:pItems){
-//                List<Rating> ratings=getTrainData(pItem);
-//                if(ratings!=null){  // has other users rated this item
-//                    List<Long> users=new ArrayList<>();
-//                    for(int i=0;i<ratings.size();i++){
-//                        Long userId=ratings.get(i).getUserId();
-//                        if(userId!=user) users.add(userId);            
-//                    }
-//                    Long2DoubleMap similarities=getSimilarity(pUser,users);
-//                    Double top=0.00,bottom=0.00;
-//                    
-//                    for(Map.Entry<Long,Double> sEntry:similarities.entrySet()){
-//                        double sim=sEntry.getValue();
-//                        Long2DoubleMap uVector = getUserRatingVector(sEntry.getKey());
-//                        Double mean=Vectors.mean(uVector);
-//                        Double rat=uVector.get(pItem);
-//                        top+=((rat-mean)*sEntry.getValue());
-//                        bottom+=Math.abs(sEntry.getValue());
-//                    }
-//                    Double point=pMean+top/bottom; 
-//                }
-//            }
-//        }
+        for(Map.Entry<Long,List<Long>> entry:predicts.entrySet()){
+            Long pUser=entry.getKey();
+            List<Long> pItems=entry.getValue();
+            Long2DoubleMap userVector = getUserRatingVector(pUser);   //already delete '55' marked items
+            Double pMean=Vectors.mean(userVector);
+            for(Long pItem:pItems){
+                List<Rating> ratings=getTrainData(pItem);
+                List<Long> neightbors=new ArrayList<>();
+                if(ratings!=null && ratings.size()!=0){
+                    for(Rating rating:ratings){
+                        if(rating.getUserId()!=pUser) neightbors.add(rating.getUserId());
+                    }
+                }
+                int neighborSize=neightbors.size();
+                if(neighborSize >= neighbor_Threshold){
+                    //user-user
+                    Long2DoubleMap similarities=getSimilarityByAge(pUser, neightbors);
+                    Double top=0.00,bottom=0.00;
+                    if(similarities.size()>0){
+                        for(Map.Entry<Long,Double> similarity:similarities.entrySet()){
+                            Long2DoubleMap nVector = getUserRatingVector(similarity.getKey());
+                            Double mean=Vectors.mean(nVector);
+                            Double rat=nVector.get(pItem);
+                            top+=((rat-mean)*similarity.getValue());
+                            bottom+=similarity.getValue();
+                        }
+                        Double point=pMean+top/bottom;  //could includes rating more than 10
+                        System.out.println(point);
+                    } 
+                }
+            }
+        }
         
-        String author =bookInfoDao.getAuthor( (long)78711040);
-        System.out.println(author);
         List<Result> results = new ArrayList<>();  
         return Results.newResultMap(results);
     }
@@ -105,7 +109,7 @@ public class SimpleUserUserItemScorer extends AbstractItemScorer {
         List<Rating> results=new ArrayList<>();
         if(ratings!=null){
             for(Rating rating:ratings){
-                if(rating.getValue()!=55) results.add(rating);
+                if(rating.getValue()!=55&&rating.getValue()!=0) results.add(rating);
             }
         }
         return results;
@@ -133,7 +137,7 @@ public class SimpleUserUserItemScorer extends AbstractItemScorer {
         }
         Long2DoubleMap ratings = new Long2DoubleOpenHashMap();
         for (Rating r: history) {
-            if (r.hasValue()&&r.getValue()!=55) {
+            if (r.hasValue()&&r.getValue()!=55&&r.getValue()!=0) {
                ratings.put(r.getItemId(), r.getValue());
              }
         }
@@ -165,8 +169,9 @@ public class SimpleUserUserItemScorer extends AbstractItemScorer {
                     bottomRight+=(uValue*uValue);
                 }
             }
+            
             Double dotpro=Vectors.dotProduct(common, rmm);
-            Double similarity=dotpro/(Math.sqrt(bottomLeft)* Math.sqrt(bottomRight));                
+            Double similarity=dotpro/(Math.sqrt(bottomLeft)* Math.sqrt(bottomRight));
             if(similarity>0) sim.put(user, similarity);
         }
         
@@ -184,6 +189,60 @@ public class SimpleUserUserItemScorer extends AbstractItemScorer {
                 result.put(list.get(i).getKey(),list.get(i).getValue());
             }
             return result;
+    }
+    
+    
+    private Long2DoubleMap getSimilarityByAge(long tUser, List<Long> users){
+        Long2DoubleMap sim = new Long2DoubleOpenHashMap();
+        Long2DoubleMap userRatings=getUserRatingVector(tUser);
+        Long2IntMap ages=userInfoDao.getUsersAge();
+        Double uMean=Vectors.mean(userRatings);
+        for(Map.Entry<Long,Double> entry:userRatings.entrySet()){
+            entry.setValue(entry.getValue()-uMean);
+        }
+        for(Long user:users) {
+            Long2DoubleMap ratings=getUserRatingVector(user);
+            Long2DoubleMap common=new Long2DoubleOpenHashMap();
+            Long2DoubleMap rmm=new Long2DoubleOpenHashMap();
+            Double rMean=Vectors.mean(ratings);
+            //calculate euclidean of products in common for target user
+            Double bottomLeft=0.00,bottomRight=0.00;  //two euclidean norms of (rating-average)
+            for(long entry:ratings.keySet()){
+                Double value=userRatings.get(entry);
+                Double uValue=ratings.get(entry)-rMean;
+                if(value!=null&&!value.equals(0.00)){
+                    Double rValue=value-uMean;
+                    common.put((Long)entry,rValue);
+                    rmm.put((Long)entry,uValue);
+                    bottomLeft+=(rValue*rValue);
+                    bottomRight+=(uValue*uValue);
+                }
+            }
+            
+            Double dotpro=Vectors.dotProduct(common, rmm);
+            double factor= 1-Math.abs(ages.get(tUser)-ages.get(user))/3*0.05;
+            Double similarity=dotpro/(Math.sqrt(bottomLeft)* Math.sqrt(bottomRight));
+            if(similarity>0){
+                similarity*=factor;
+                sim.put(user, similarity);
+            } 
+        }
+        
+            //sort the similarities and return top30 
+            List<Map.Entry<Long,Double>> list = new ArrayList<>(sim.entrySet());
+            Collections.sort(list, new Comparator<Map.Entry<Long, Double>>(){
+                @Override
+                public int compare( Map.Entry<Long, Double> o1, Map.Entry<Long, Double> o2 )
+                {
+                    return ( o2.getValue() ).compareTo( o1.getValue() );
+                }
+            });
+            Long2DoubleMap result=new Long2DoubleOpenHashMap();
+            for(int i=0;i<list.size()&&i<30;i++){
+                result.put(list.get(i).getKey(),list.get(i).getValue());
+            }
+            return result;
+    
     }
     
 }

@@ -5,6 +5,7 @@
  */
 package recsys.dao;
 
+import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import java.util.List;
 import org.lenskit.data.dao.ItemDAO;
 import org.lenskit.data.dao.UserDAO;
@@ -15,6 +16,7 @@ import org.lenskit.data.dao.UserDAO;
  */
 public interface CusUserDAO extends UserDAO {
     
-    int getUserAge(long userId);
+    
+    Long2IntMap getUsersAge();
     
 }

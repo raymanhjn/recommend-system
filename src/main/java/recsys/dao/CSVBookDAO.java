@@ -72,16 +72,17 @@ public class CSVBookDAO implements CusBookDAO{
         return authors.keySet();
     }
 
+
     @Override
-    public List<Long> getBooksByAuthor(String author) {
+    public Map<String, List<Long>> getBooks() {
         ensureUserCache();
-        return author2books.get(author);
+        return author2books;
     }
 
     @Override
-    public String getAuthor(Long bookID) {
+    public Long2ObjectMap<String> getAuthor() {
         ensureUserCache();
-        return authors.get(bookID);
+        return authors;
     }
     
 }

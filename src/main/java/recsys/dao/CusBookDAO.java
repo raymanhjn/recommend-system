@@ -5,7 +5,9 @@
  */
 package recsys.dao;
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import java.util.List;
+import java.util.Map;
 import org.lenskit.data.dao.ItemDAO;
 
 /**
@@ -13,8 +15,8 @@ import org.lenskit.data.dao.ItemDAO;
  * @author Jianing He
  */
 public interface CusBookDAO extends ItemDAO{
-    
-        List<Long> getBooksByAuthor(String author);
+        Map<String,List<Long>> getBooks();
         
-        String getAuthor(Long bookID);
+        Long2ObjectMap<String> getAuthor();
+
 }

@@ -8,6 +8,7 @@ package recsys.dao;
 import it.unimi.dsi.fastutil.longs.Long2DoubleMap;
 import it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
@@ -32,7 +33,7 @@ import org.lenskit.util.math.Vectors;
 public class CSVUserDAO implements CusUserDAO{
     private final File userFile;
     private transient volatile Map<String,List<Long>> authorCache;
-    private transient volatile Long2DoubleMap userAge;
+    private transient volatile Long2IntMap userAge;
     @Inject
     public CSVUserDAO(@UserFile File users){
         userFile=users;
@@ -43,7 +44,7 @@ public class CSVUserDAO implements CusUserDAO{
             synchronized (this) {
                 if(userFile !=null){
                     authorCache = new HashMap<String,List<Long>>();
-                    userAge=new Long2DoubleOpenHashMap();
+                    userAge=new Long2IntOpenHashMap();
                     ObjectStream<List<String>> lines = null;
                     try {
                         LineStream stream = LineStream.openFile(userFile);
@@ -70,17 +71,16 @@ public class CSVUserDAO implements CusUserDAO{
         }
     }
     
-    
-
-    @Override
-    public int getUserAge(long userId) {
-        ensureUserCache();
-        return (int)userAge.get(userId);
-    }
 
     @Override
     public LongSet getUserIds() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public Long2IntMap getUsersAge() {
+        ensureUserCache();
+        return userAge;
     }
 
 
