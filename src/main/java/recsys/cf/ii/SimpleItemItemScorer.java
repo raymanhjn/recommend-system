@@ -82,8 +82,6 @@ public class SimpleItemItemScorer extends AbstractItemScorer {
                 i++;
             }
             
-            // TODO: Score this item and save the score into scores.
-            // HINT: You might want to use the TopNScoredItemAccumulator class.
             double top=0.00,bottom=0.00;
             for(Map.Entry<Long,Double> entry:topNeighbors.entrySet()){
                 //entry's key is the itemID,value is similarity
@@ -99,9 +97,6 @@ public class SimpleItemItemScorer extends AbstractItemScorer {
         }
         List<Result> results = new ArrayList<>();
         for (Map.Entry<Long, Double> entry : scores.entrySet()) {
-            // TODO: Add each of the scores to the results list as a Result object
-            // HINT: Don't forget to add the item mean back into the score.
-            // HINT: results.add(Results.create(item, score));
             results.add(Results.create(entry.getKey(), entry.getValue()));
         }
         return Results.newResultMap(results);

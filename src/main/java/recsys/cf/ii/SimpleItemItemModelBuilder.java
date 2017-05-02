@@ -32,8 +32,6 @@ import java.util.Map;
 public class SimpleItemItemModelBuilder implements Provider<SimpleItemItemModel> {
 
     private static final Logger logger = LoggerFactory.getLogger(SimpleItemItemModelBuilder.class);
-    ;
-
     private final ItemDAO itemDao;
     private final ItemEventDAO itemEventDAO;
 
@@ -48,22 +46,25 @@ public class SimpleItemItemModelBuilder implements Provider<SimpleItemItemModel>
     public SimpleItemItemModel get() {
         Map<Long, Long2DoubleMap> itemVectors = Maps.newHashMap();
         Long2DoubleMap itemMeans = new Long2DoubleOpenHashMap();
-
         ObjectStream<ItemEventCollection<Rating>> stream = itemEventDAO.streamEventsByItem(Rating.class);
-        
         try {
             for (ItemEventCollection<Rating> item : stream) {
                 Long2DoubleOpenHashMap ratings = new Long2DoubleOpenHashMap(Ratings.itemRatingVector(item));
-
-                // TODO: Store the item's mean rating in itemMeans
-                itemMeans.put(item.getItemId(), Vectors.mean(ratings));
-                // TODO: Normalize the item vector before putting it in itemVectors
-                ImmutableSparseVector isv =ImmutableSparseVector.create(ratings);
-                double n= isv.norm();
-                for (Map.Entry<Long, Double> entry : ratings.entrySet()) {
+                Long2DoubleOpenHashMap reviseRatings = new Long2DoubleOpenHashMap(Ratings.itemRatingVector(item));
+                for(Map.Entry<Long,Double> entry:ratings.entrySet()){
+                    if(entry.getValue()!=0&&entry.getValue()!=55){
+                        reviseRatings.put(entry.getKey(), entry.getValue());
+                    } 
+                }
+                // Store the item's mean rating in itemMeans
+                itemMeans.put(item.getItemId(), Vectors.mean(reviseRatings));
+                // Normalize the item vector before putting it in itemVectors
+                ImmutableSparseVector isv =ImmutableSparseVector.create(reviseRatings);
+                double n= isv.norm()==0?1:isv.norm();
+                for (Map.Entry<Long, Double> entry : reviseRatings.entrySet()) {
                     entry.setValue(entry.getValue()/n);
                 }
-                itemVectors.put(item.getItemId(), LongUtils.frozenMap(ratings));
+                itemVectors.put(item.getItemId(), LongUtils.frozenMap(reviseRatings));
             }
         } finally {
             stream.close();
@@ -77,9 +78,7 @@ public class SimpleItemItemModelBuilder implements Provider<SimpleItemItemModel>
             itemSimilarities.put(i, new Long2DoubleOpenHashMap());
         }
 
-        // TODO: Compute similarities between each pair of items and
-        // store those values in itemSimilarities object.
-        // HINT: itemSimilarities.get(i1).put(i2, sim);
+        // Compute similarities between each pair of items and
         for(long i:itemVectors.keySet()){
             Long2DoubleMap map=itemSimilarities.get(i);
             Long2DoubleMap targetVector=itemVectors.get(i);
@@ -89,6 +88,7 @@ public class SimpleItemItemModelBuilder implements Provider<SimpleItemItemModel>
                 if(i!=j){
                     double dot=Vectors.dotProduct(targetVector, itemVector);
                     double itemEu= Vectors.euclideanNorm(itemVector);
+                    System.out.println(targetEu);
                     double sim=dot/(targetEu*itemEu);
                     map.put(j, sim);
                 }

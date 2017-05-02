@@ -34,6 +34,9 @@ public class CSVUserDAO implements CusUserDAO{
     private final File userFile;
     private transient volatile Map<String,List<Long>> authorCache;
     private transient volatile Long2IntMap userAge;
+    private transient volatile int maxAge;
+    private transient volatile int minAge;
+    
     @Inject
     public CSVUserDAO(@UserFile File users){
         userFile=users;
@@ -58,6 +61,8 @@ public class CSVUserDAO implements CusUserDAO{
                             long userID=Long.parseLong(line.get(0));
                             try{
                                 age =Integer.parseInt(line.get(2));
+                                maxAge=Math.max(maxAge,age);
+                                minAge=Math.min(minAge,age);
                             }catch (NumberFormatException e) {
                                 age=34;
                             }
@@ -81,6 +86,11 @@ public class CSVUserDAO implements CusUserDAO{
     public Long2IntMap getUsersAge() {
         ensureUserCache();
         return userAge;
+    }
+
+    @Override
+    public int maxDifAge() {
+        return maxAge-minAge;
     }
 
 

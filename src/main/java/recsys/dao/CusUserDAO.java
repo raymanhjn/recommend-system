@@ -19,4 +19,6 @@ public interface CusUserDAO extends UserDAO {
     
     Long2IntMap getUsersAge();
     
+    int maxDifAge();
+    
 }

@@ -3,7 +3,6 @@ package recsys.dao;
 import com.google.common.collect.ImmutableSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongSet;
 import org.apache.commons.lang3.text.StrTokenizer;
 import org.lenskit.data.dao.DataAccessException;
 import org.lenskit.util.io.LineStream;
@@ -78,10 +77,5 @@ public class CSVItemTagDAO implements ItemTagDAO {
     public Set<String> getTagVocabulary() {
         ensureTagCache();
         return vocabCache;
-    }
-
-    @Override
-    public LongSet getItemIds() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 }

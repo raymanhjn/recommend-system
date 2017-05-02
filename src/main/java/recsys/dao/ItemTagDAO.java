@@ -2,13 +2,12 @@ package recsys.dao;
 
 import java.util.List;
 import java.util.Set;
-import org.lenskit.data.dao.ItemDAO;
 
 /**
  * Data access object providing access to item tags.
  * @author <a href="http://www.grouplens.org">GroupLens Research</a>
  */
-public interface ItemTagDAO extends ItemDAO{
+public interface ItemTagDAO {
     /**
      * Get the tags for a particular item.  A tag can appear multiple times if multiple users have
      * applied it.
